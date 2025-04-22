@@ -64,7 +64,6 @@ class AthenaCredentials(Credentials):
     emr_job_execution_role_arn: Optional[str] = None
     emr_application_id: Optional[str] = None
     emr_application_name: Optional[str] = None
-    lambda_function_name: Optional[str] = None
     # Unfortunately we can not just use dict, must be Dict because we'll get the following error:
     # Credentials in profile "athena", target "athena" invalid: Unable to create schema for 'dict'
     seed_s3_upload_args: Optional[Dict[str, Any]] = None
@@ -105,7 +104,6 @@ class AthenaCredentials(Credentials):
             "emr_job_execution_role_arn",
             "emr_application_id",
             "emr_application_name",
-            "lambda_function_name"
         )
 
 
