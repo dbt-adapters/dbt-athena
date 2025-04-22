@@ -1,4 +1,8 @@
-{%- macro athena__py_save_table_as(compiled_code, target_relation, optional_args={}) -%}
+{% macro py_save_table_as(compiled_code, target_relation, optional_args={}) %}
+  {{ return(adapter.dispatch('py_save_table_as', 'athena')(compiled_code, target_relation, optional_args={})) }}
+{% endmacro %}
+
+{%- macro default__py_save_table_as(compiled_code, target_relation, optional_args={}) -%}
     {%- set location = optional_args.get("location") -%}
     {%- set format = optional_args.get("format", "parquet") -%}
     {%- set mode = optional_args.get("mode", "overwrite") -%}

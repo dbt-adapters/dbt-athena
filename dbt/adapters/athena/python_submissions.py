@@ -20,6 +20,8 @@ from dbt.events.functions import get_invocation_id
 from dbt.exceptions import DbtRuntimeError
 
 SUBMISSION_LANGUAGE = "python"
+BLUE = '\033[94m'
+RESET = '\033[0m'
 
 
 class AthenaPythonJobHelper(PythonJobHelper):
@@ -235,6 +237,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
         try:
             polling_interval = self.polling_interval
             timer: float = 0
+            is_info_logged: bool = False
             while True:
                 execution_response = self.athena_client.get_calculation_execution(
                     CalculationExecutionId=calculation_execution_id
@@ -246,6 +249,13 @@ class AthenaPythonJobHelper(PythonJobHelper):
                 if execution_result:
                     execution_stderr_s3_path = execution_result.get("StdErrorS3Uri", None)
                     execution_stdout_s3_path = execution_result.get("StdOutS3Uri", None)
+                    if execution_stdout_s3_path and not is_info_logged:
+                        LOGGER.info(f"""{BLUE}Athena spark job logs:
+dbt model:          {self.relation_name}
+Stdout s3 path:     {execution_stdout_s3_path}
+Stderr s3 path:     {execution_stderr_s3_path}
+{RESET}""")
+                        is_info_logged = True
 
                 execution_status_state = ""
                 execution_status_reason = ""
@@ -255,7 +265,7 @@ class AthenaPythonJobHelper(PythonJobHelper):
 
                 if execution_status_state in ["FAILED", "CANCELED"]:
                     raise DbtRuntimeError(
-                        f""" Athena spark job failed/cancelled:
+                        f"""Athena spark job failed/cancelled:
 dbt invocation id:  {self.invocation_id}
 dbt model:          {self.relation_name}
 Session Id:         {execution_session}
@@ -268,7 +278,7 @@ Stdout s3 path:     {execution_stdout_s3_path}
                     )
 
                 if execution_status_state == "COMPLETED":
-                    LOGGER.info(
+                    LOGGER.debug(
                         f"""Athena spark job completed:
 dbt invocation id:  {self.invocation_id}
 dbt model:          {self.relation_name}
@@ -582,9 +592,16 @@ Job run id:          {job_run_id}
 script location:     {script_location}
 """)
 
+            LOGGER.info(f"""{BLUE}EMR job logs:
+dbt model:          {self.relation_name}
+Stdout s3 path:      s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stdout.gz
+Stderr s3 path:      s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/{self.application_id}/jobs/{job_run_id}/SPARK_DRIVER/stderr.gz
+{RESET}""")
+
             job_done = False
             while wait and not job_done:
                 jr_response = self.get_job_run(job_run_id)
+
                 job_done = jr_response.get("state") in [
                     "SUCCESS",
                     "FAILED",
@@ -616,7 +633,7 @@ Stdout s3 path:         s3://{self.s3_bucket}/{self.s3_log_prefix}/applications/
 """
                     )
                 elif jr_response.get("state") == "SUCCESS":
-                    LOGGER.info(f"""EMR job completed:
+                    LOGGER.debug(f"""EMR job completed:
 dbt invocation id:   {self.invocation_id}
 dbt model:           {self.relation_name}
 emr application id:  {self.application_id}

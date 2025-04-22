@@ -75,7 +75,7 @@
     {%- endif -%}
 
     {# {% do log('Creating table with spark and compiled code: ' ~ compiled_code) %} #}
-    {{ athena__py_save_table_as(
+    {{ py_save_table_as(
         compiled_code,
         relation,
         optional_args={

@@ -1061,7 +1061,10 @@ class AthenaAdapter(SQLAdapter):
         return {
             "athena_helper": AthenaPythonJobHelper,
             "athena": AthenaPythonJobHelper,
+            "athena_spark": AthenaPythonJobHelper,
             "emr_serverless": EmrServerlessJobHelper,
+            "emr": EmrServerlessJobHelper,
+            "emr_spark": EmrServerlessJobHelper,
         }
 
     @available

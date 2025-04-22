@@ -69,4 +69,4 @@ EMR_SERVERLESS_SPARK_PROPERTIES = {
     },
 }
 
-LOGGER = AdapterLogger(__name__)
+LOGGER = AdapterLogger("athena")
