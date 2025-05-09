@@ -1,5 +1,5 @@
 {% macro py_save_table_as(compiled_code, target_relation, optional_args={}) %}
-  {{ return(adapter.dispatch('py_save_table_as', 'athena')(compiled_code, target_relation, optional_args={})) }}
+  {{ return(adapter.dispatch('py_save_table_as', 'athena')(compiled_code, target_relation, optional_args)) }}
 {% endmacro %}
 
 {%- macro default__py_save_table_as(compiled_code, target_relation, optional_args={}) -%}
@@ -78,17 +78,18 @@ materialize(spark, df, dbt.this)
 
 {%- macro athena__py_execute_query(query) -%}
 {{-"\n"-}}
-def execute_query(spark_session):
-    spark_session.sql("""
+spark_sql = """
     {{ query }}
-    """)
-    return "OK"
-
-execute_query(spark)
+"""
+execute_query(spark, spark_sql)
 {%- endmacro -%}
 
 {%- macro athena__py_get_spark_dbt_object() -%}
 {{-"\n"-}}
+def execute_query(spark_session, query):
+    spark_session.sql(query)
+    return "OK"
+
 def get_spark_df(identifier):
     """
     Override the arguments to ref and source dynamically
@@ -101,7 +102,7 @@ def get_spark_df(identifier):
     So the override removes the catalog component and only
     provides the schema and identifer to spark.table()
     """
-    return spark.table(".".join(identifier.split(".")[1:]).replace('"', ''))
+    return spark.table(".".join(identifier.split(".")[1:]).replace('"', '`'))
 
 class SparkdbtObj(dbtObj):
     def __init__(self):

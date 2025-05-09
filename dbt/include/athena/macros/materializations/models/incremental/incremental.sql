@@ -45,15 +45,16 @@
       {% do drop_relation(old_tmp_relation) %}
     {% endif %}
     {%- set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
-    {%- set iceberg_insert_overwrite = iceberg_incremental_insert_overwrite(tmp_relation, target_relation) -%}
-    {%- set append_query = athena__py_execute_query(iceberg_insert_overwrite) -%}
 
     {%- if model_language == 'python' -%}
         {%- if table_type == 'iceberg' -%}
+            {%- set iceberg_insert_overwrite = iceberg_incremental_insert_overwrite(tmp_relation, target_relation) -%}
+            {%- set io_query = athena__py_execute_query(iceberg_insert_overwrite) -%}
+
             {%- set build_py -%}
                 {{- query_result -}}
                 {{-"\n\n"-}}
-                {{- append_query -}}
+                {{- io_query -}}
             {%- endset -%}
         {%- endif -%}
     {% else %}
@@ -92,8 +93,35 @@
       {% do drop_relation(old_tmp_relation) %}
     {% endif %}
     {% set query_result = safe_create_table_as(True, tmp_relation, compiled_code, model_language, force_batch) -%}
-    {% set build_py = query_result -%}
-    {%- set post_handle_merge = true -%}
+
+    {%- if model_language == 'python' -%}
+        {%- if table_type == 'iceberg' -%}
+            {%- set iceberg_merge_sql_raw = get_iceberg_merge_sql(
+                on_schema_change=on_schema_change,
+                tmp_relation=tmp_relation,
+                target_relation=target_relation,
+                unique_key=unique_key,
+                incremental_predicates=incremental_predicates,
+                existing_relation=existing_relation,
+                delete_condition=delete_condition,
+                update_condition=update_condition,
+                insert_condition=insert_condition,
+                language=model_language
+            ) -%}
+
+            {%- set iceberg_merge_sql = iceberg_merge_sql_raw.replace('"', '`') -%}
+
+            {%- set merge_query = athena__py_execute_query(iceberg_merge_sql) -%}
+
+            {%- set build_py -%}
+                {{- query_result -}}
+                {{-"\n\n"-}}
+                {{- merge_query -}}
+            {%- endset -%}
+        {%- endif -%}
+    {% else %}
+      {%- set post_handle_merge = true -%}
+    {% endif %}
     {% do to_drop.append(tmp_relation) %}
   {% endif %}
 

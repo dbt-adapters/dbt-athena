@@ -52,9 +52,9 @@
   )
 %}
       {# Only support dynamic partition overwrite mode and not static as static is nothing but a non incremental simple table materialization #}
-      INSERT  OVERWRITE {{ target_relation.schema}}.{{ target_relation.identifier }}
+      INSERT  OVERWRITE `{{ target_relation.schema}}`.`{{ target_relation.identifier }}`
       SELECT  *
-      FROM    {{ tmp_relation.schema}}.{{ tmp_relation.identifier }}
+      FROM    `{{ tmp_relation.schema}}`.`{{ tmp_relation.identifier }}`
 
 {%- endmacro %}
 
