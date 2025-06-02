@@ -92,7 +92,6 @@
         {%- if old_tmp_relation is not none -%}
           {%- do drop_relation(old_tmp_relation) -%}
         {%- endif -%}
-        {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
         -- If we have this, it means that at least the first renaming occurred but there was an issue
         -- afterwards, therefore we are in weird state. The easiest and cleanest should be to remove
         -- the backup relation. It won't have an impact because since we are in the else condition,
@@ -128,11 +127,29 @@
     {{ set_table_classification(target_relation) }}
   {% endif %}
 
-  {% if post_handle_old_relation_bkp %}   
-    -- at this point old_relation_bkp must be set and available and below wouldnt fail
-    {{ rename_relation(old_relation, old_relation_bkp) }}
-    {{ rename_relation(tmp_relation, target_relation) }}
-    {{ drop_relation(old_relation_bkp) }}
+  {% if post_handle_old_relation_bkp %}
+        {%- set old_relation_table_type = adapter.get_glue_table_type(old_relation).value if old_relation else none -%}
+
+        -- we cannot use old_bkp_relation, because it returns None if the relation doesn't exist
+        -- we need to create a python object via the make_temp_relation instead
+        {%- set old_relation_bkp = make_temp_relation(old_relation, '__bkp') -%}
+
+        {%- if old_relation_table_type == 'iceberg_table' -%}
+          {{ rename_relation(old_relation, old_relation_bkp) }}
+        {%- else  -%}
+          {%- do drop_relation_glue(old_relation) -%}
+        {%- endif -%}
+
+        -- publish the target table doing a final renaming
+        {{ rename_relation(tmp_relation, target_relation) }}
+
+        -- if old relation is iceberg_table, we have a backup
+        -- therefore we can drop the old relation backup, in all other cases there is nothing to do
+        -- in case of switch from hive to iceberg the backup table do not exists
+        -- in case of first run, the backup table do not exists
+        {%- if old_relation_table_type == 'iceberg_table' -%}
+          {%- do drop_relation(old_relation_bkp) -%}
+        {%- endif -%}
   {% endif %}
 
   {{ run_hooks(post_hooks) }}

@@ -17,19 +17,6 @@
 {{-"\n"-}}
 import pyspark
 
-{% if submission_method == "lambda" -%}
-
-{{-"\n"-}}
-spark = pyspark.sql.SparkSession.builder \
-    .appName("dbt_{{ target_relation.schema}}_{{ target_relation.identifier }}") \
-    .master("local[*]") \
-    {%- if table_type == "iceberg" %}
-    .config("spark.sql.catalog.AwsDataCatalog.warehouse", "{{ location | replace('s3://', 's3a://') }}") \
-    {%- endif %}
-    .enableHiveSupport().getOrCreate()
-
-{%- endif -%}
-
 {% if submission_method == "emr_serverless" -%}
 
 {{-"\n"-}}
