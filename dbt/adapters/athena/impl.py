@@ -41,7 +41,7 @@ from dbt.adapters.athena.lakeformation import (
     LfTagsConfig,
     LfTagsManager,
 )
-from dbt.adapters.athena.python_submissions import AthenaPythonJobHelper, EmrServerlessJobHelper, LambdaJobHelper
+from dbt.adapters.athena.python_submissions import AthenaPythonJobHelper, EmrServerlessJobHelper
 from dbt.adapters.athena.relation import (
     RELATION_TYPE_MAP,
     AthenaRelation,
@@ -1060,8 +1060,11 @@ class AthenaAdapter(SQLAdapter):
     def python_submission_helpers(self) -> Dict[str, Type[PythonJobHelper]]:
         return {
             "athena_helper": AthenaPythonJobHelper,
+            "athena": AthenaPythonJobHelper,
+            "athena_spark": AthenaPythonJobHelper,
             "emr_serverless": EmrServerlessJobHelper,
-            "lambda": LambdaJobHelper,
+            "emr": EmrServerlessJobHelper,
+            "emr_spark": EmrServerlessJobHelper,
         }
 
     @available

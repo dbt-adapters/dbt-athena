@@ -66,7 +66,7 @@
 {%- endmacro -%}
 
 
-{% macro iceberg_merge(
+{% macro get_iceberg_merge_sql(
     on_schema_change,
     tmp_relation,
     target_relation,
@@ -76,10 +76,8 @@
     delete_condition,
     update_condition,
     insert_condition,
-    force_batch,
-    statement_name="main"
-  )
-%}
+    language = 'sql'
+)%}
     {%- set merge_update_columns = config.get('merge_update_columns') -%}
     {%- set merge_exclude_columns = config.get('merge_exclude_columns') -%}
     {%- set merge_update_columns_default_rule = config.get('merge_update_columns_default_rule', 'replace') -%}
@@ -139,18 +137,50 @@
         then insert ({{ dest_cols_csv }})
          values ({{ src_cols_csv }})
     {%- endset -%}
+    
+    {%- set src_part -%}
+      {% if language == 'python' %}
+        merge into `{{ target_relation.schema}}`.`{{ target_relation.identifier }}` as target 
+        using `{{ tmp_relation.schema}}`.`{{ tmp_relation.identifier }}` as src
+      {% else %}
+        merge into {{ target_relation }} as target 
+        using {{ tmp_relation }} as src
+      {% endif %}
+    {%- endset -%}
 
+    {{ src_part }}
+    {{ merge_part }}
+
+{% endmacro %}
+
+{% macro iceberg_merge(
+    on_schema_change,
+    tmp_relation,
+    target_relation,
+    unique_key,
+    incremental_predicates,
+    existing_relation,
+    delete_condition,
+    update_condition,
+    insert_condition,
+    force_batch,
+    statement_name="main"
+  )
+%}
     {%- if force_batch -%}
       {% do batch_iceberg_merge(tmp_relation, target_relation, merge_part, dest_cols_csv) %}
     {%- else -%}
-      {%- set src_part -%}
-          merge into {{ target_relation }} as target using {{ tmp_relation }} as src
-      {%- endset -%}
-      {%- set merge_full -%}
-          {{ src_part }}
-          {{ merge_part }}
-      {%- endset -%}
-
+      {%- set merge_full = get_iceberg_merge_sql(
+        on_schema_change,
+        tmp_relation,
+        target_relation,
+        unique_key,
+        incremental_predicates,
+        existing_relation,
+        delete_condition,
+        update_condition,
+        insert_condition)  
+      -%}
       {%- set query_result =  adapter.run_query_with_partitions_limit_catching(merge_full) -%}
       {%- do log('QUERY RESULT: ' ~ query_result) -%}
       {%- if query_result == 'TOO_MANY_OPEN_PARTITIONS' -%}
